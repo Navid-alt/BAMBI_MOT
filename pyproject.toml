@@ -16,9 +16,6 @@ dependencies = [
     # Tracking
     "boxmot>=10.0.0",
 
-    # Evaluation
-    "trackeval",
-
     # Data handling
     "opencv-python>=4.8.0",
     "numpy>=1.24.0",
@@ -60,7 +57,7 @@ colab = [
 ]
 
 [project.urls]
-Repository = https://github.com/Navid-alt/BAMBI_MOT.git
+Repository = "https://github.com/Navid-alt/BAMBI_MOT.git"
 Dataset = "https://github.com/bambi-eco/Dataset"
 
 [tool.hatch.build.targets.wheel]
@@ -79,3 +76,6 @@ ignore = ["E501"]           # line length handled by black
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
