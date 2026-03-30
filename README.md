@@ -28,7 +28,7 @@ pip install -e ".[dev]"
 
 # On Google Colab
 pip install -e ".[colab]"
-```
+
 
 ### Data
 
@@ -58,16 +58,4 @@ running anything.
 - ByteTrack: Zhang et al., ECCV 2022
 - BoT-SORT: Aharon et al., arXiv 2022
 - HOTA: Luiten et al., IJCV 2020
-```
-
 ---
-## Step 6 — Branch strategy
-
-Since you're comfortable with Git, use a simple branch workflow:
-```
-main          ← stable, working code only
-├── dev       ← integration branch, merge features here first
-├── s1/data-pipeline
-├── s2/tracking
-├── s3/evaluation
-└── s4/analysis
