@@ -1,2 +1,4 @@
 venv/
 config.local.yaml
+data/
+src/__pycache__
