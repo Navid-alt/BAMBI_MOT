@@ -1,0 +1,23 @@
+# uv environment
+.venv/
+
+# Persistent MLflow store (Docker volume)
+mlflow_data/
+
+# Generated dataset views / subsets (symlinks back into data/yolo_data)
+_subset/
+_rfdetr_view/
+
+# Training + benchmark outputs
+runs/
+output/
+_bench_runs/
+reports/_bench/
+lightning_logs/
+wandb/
+
+# Downloaded pretrained weights
+*.pt
+*.pth
+
+__pycache__/

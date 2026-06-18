@@ -1,0 +1,29 @@
+[project]
+name = "detection-models"
+version = "0.1.0"
+description = "Joined training environment for YOLO26 and RF-DETR detectors on the BAMBI wildlife dataset"
+requires-python = ">=3.11"
+dependencies = [
+    "markdown>=3.10.2",
+    "mlflow>=3.14.0",
+    "pycocotools>=2.0.11",
+    "rfdetr[loggers,train]>=1.8.0",
+    "supervision>=0.29.0.post0",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
+    "ultralytics>=8.4.70",
+]
+
+# --- Single joined venv: PyTorch detectors share one environment ---
+# torch/torchvision are pulled from the CUDA 12.4 wheel index so the GPU build
+# is installed (works with the local RTX 3050 Ti / CUDA 12 driver and the
+# future 12 GB card). Everything else resolves from the default PyPI index.
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu124" }]
+torchvision = [{ index = "pytorch-cu124" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true

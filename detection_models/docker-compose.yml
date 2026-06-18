@@ -1,0 +1,38 @@
+# Persistent MLflow tracking server.
+#
+#   docker compose up -d        # start, UI at http://localhost:5000
+#   docker compose down         # stop (data is kept)
+#
+# Everything is stored under ./mlflow_data on the host so runs, metrics and
+# model artifacts survive container restarts:
+#   ./mlflow_data/mlflow.db     -> experiment/run metadata (SQLite backend)
+#   ./mlflow_data/artifacts/    -> logged models, weights, plots
+#
+# Artifacts are proxied through the server (--serve-artifacts) so training
+# scripts only need MLFLOW_TRACKING_URI=http://localhost:5000 and never touch
+# the storage path directly.
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: bambi-mlflow
+    restart: unless-stopped
+    # Runs as root (the image default) so it can always write to the ./mlflow_data
+    # bind mount — Docker auto-creates that dir as root on first start. Files under
+    # mlflow_data/ will therefore be root-owned (gitignored).
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow_data:/mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --serve-artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5

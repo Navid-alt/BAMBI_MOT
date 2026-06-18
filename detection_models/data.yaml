@@ -1,0 +1,13 @@
+# Local YOLO dataset config for the BAMBI wildlife detection set.
+# Used directly by YOLO26 (Ultralytics). RF-DETR uses a COCO copy produced by
+# tools/yolo_to_coco.py (see readme).
+path: /home/stas/my_git/BAMBI_MOT/data/yolo_data
+train: train/images
+val: val/images
+test: test/images
+
+nc: 3
+names:
+  0: Wild boar
+  1: Red deer
+  2: Roe deer
