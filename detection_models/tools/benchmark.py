@@ -9,9 +9,11 @@ resolution) is caught and recorded rather than crashing the run.
     uv run python tools/benchmark.py --model yolo26-s
     uv run python tools/benchmark.py --model rf-detr-l --batch 2   # override batch
 
-All four models train at resolution 736 (the nearest multiple of 32 to 720 —
-both Ultralytics and RF-DETR require the input to be divisible by 32). Small
-models use a larger batch, ``-l`` models a smaller one, sized for a 12 GB GPU.
+All four models train at the native frame size 1024 (the BAMBI frames are
+1024x1024, so there is no downscaling). 1024 is valid for both detectors:
+Ultralytics needs a multiple of 32, and RFDETRSmall/Large need a multiple of
+patch_size(16) * num_windows(2) = 32 — 1024 satisfies both. Small models use a
+larger batch, ``-l`` models a smaller one, sized for a 12 GB GPU.
 
 Aggregate the JSON files into a Markdown report with tools/make_report.py.
 """
@@ -33,10 +35,11 @@ ROOT = Path(__file__).resolve().parents[1]
 BENCH_DIR = ROOT / "reports" / "_bench"
 RUNS_DIR = ROOT / "_bench_runs"
 
-# Shared input resolution. 720 is not valid (YOLO and RF-DETR both need a
-# multiple of 32; 720 % 32 == 16), so we use 736 — the nearest valid size,
-# rounded up. Change to 704 here to round down instead.
-RESOLUTION = 736
+# Shared input resolution. The BAMBI frames are natively 1024x1024, so we train
+# at full resolution (no downscaling). 1024 is valid for both detectors: YOLO
+# needs a multiple of 32, and RFDETRSmall/Large need a multiple of
+# patch_size(16) * num_windows(2) = 32 — 1024 = 32 * 32 satisfies both.
+RESOLUTION = 1024
 
 # MLflow experiment for benchmark runs, kept separate from training.
 BENCH_EXPERIMENT = "bambi-bench"
@@ -46,16 +49,25 @@ BENCH_EXPERIMENT = "bambi-bench"
 class Spec:
     family: str            # "yolo" | "rfdetr"
     batch: int             # small models -> larger batch, -l models -> smaller
+    resolution: int = 1024 # image size (1024 native, 640 for speed)
     weights: str = ""      # YOLO weights file (auto-downloaded by Ultralytics)
     rf_class: str = ""     # RF-DETR class name exported by the rfdetr package
     grad_accum: int = 1
 
 
+# Batches sized for a 12 GB GPU at resolution 1024 (lowered from the 736 values
+# since 1024 is ~1.9x the pixels). The benchmark records OOM gracefully, so tune
+# here if a model still overflows. 640 resolution uses higher batches (~2.5x)
+# since it's only 0.39x the pixels of 1024.
 SPECS: dict[str, Spec] = {
-    "yolo26-s":  Spec("yolo",   batch=24, weights="yolo26s.pt"),
-    "yolo26-l":  Spec("yolo",   batch=10, weights="yolo26l.pt"),
-    "rf-detr-s": Spec("rfdetr", batch=8,  rf_class="RFDETRSmall"),
-    "rf-detr-l": Spec("rfdetr", batch=6,  rf_class="RFDETRLarge"),
+    "yolo26-s":      Spec("yolo",   batch=12, resolution=1024, weights="yolo26s.pt"),
+    "yolo26-l":      Spec("yolo",   batch=5,  resolution=1024, weights="yolo26l.pt"),
+    "rf-detr-s":     Spec("rfdetr", batch=4,  resolution=1024, rf_class="RFDETRSmall"),
+    "rf-detr-l":     Spec("rfdetr", batch=3,  resolution=1024, rf_class="RFDETRLarge"),
+    "yolo26-s-640":  Spec("yolo",   batch=30, resolution=640,  weights="yolo26s.pt"),
+    "yolo26-l-640":  Spec("yolo",   batch=12, resolution=640,  weights="yolo26l.pt"),
+    "rf-detr-s-640": Spec("rfdetr", batch=10, resolution=640,  rf_class="RFDETRSmall"),
+    "rf-detr-l-640": Spec("rfdetr", batch=8,  resolution=640,  rf_class="RFDETRLarge"),
 }
 
 
@@ -99,14 +111,14 @@ def run_yolo(spec: Spec, name: str, record: dict) -> dict:
     torch.cuda.reset_peak_memory_stats()
     t0 = time.perf_counter()
     model.train(
-        data=str(data_yaml), epochs=1, imgsz=RESOLUTION, batch=spec.batch, device=0,
+        data=str(data_yaml), epochs=1, imgsz=spec.resolution, batch=spec.batch, device=0,
         workers=4, project=str(RUNS_DIR), name=name, exist_ok=True,
         val=False, plots=False, verbose=False,
     )
     elapsed = time.perf_counter() - t0
     return {"n_train": n_train, "elapsed_s": elapsed, "peak_vram_gb": _peak_vram(),
-            "batch": spec.batch, "resolution": RESOLUTION,
-            "config": f"imgsz={RESOLUTION}, batch={spec.batch}"}
+            "batch": spec.batch, "resolution": spec.resolution,
+            "config": f"imgsz={spec.resolution}, batch={spec.batch}"}
 
 
 def run_rfdetr(spec: Spec, name: str, record: dict) -> dict:
@@ -120,14 +132,14 @@ def run_rfdetr(spec: Spec, name: str, record: dict) -> dict:
     t0 = time.perf_counter()
     model.train(
         dataset_dir=str(dataset_dir), epochs=1, batch_size=spec.batch,
-        grad_accum_steps=spec.grad_accum, resolution=RESOLUTION,
+        grad_accum_steps=spec.grad_accum, resolution=spec.resolution,
         output_dir=str(RUNS_DIR / name), device="cuda",
         tensorboard=False, mlflow=False, progress_bar="tqdm",
     )
     elapsed = time.perf_counter() - t0
     return {"n_train": n_train, "elapsed_s": elapsed, "peak_vram_gb": _peak_vram(),
-            "batch": spec.batch, "resolution": RESOLUTION,
-            "config": f"resolution={RESOLUTION}, batch_size={spec.batch}, grad_accum={spec.grad_accum}"}
+            "batch": spec.batch, "resolution": spec.resolution,
+            "config": f"resolution={spec.resolution}, batch_size={spec.batch}, grad_accum={spec.grad_accum}"}
 
 
 def run_model(spec: Spec, name: str, record: dict) -> dict:

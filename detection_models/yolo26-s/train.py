@@ -31,7 +31,8 @@ def main() -> None:
     # Route Ultralytics' MLflow callback to the Docker tracking server.
     os.environ.setdefault("MLFLOW_TRACKING_URI", "http://localhost:5000")
     os.environ.setdefault("MLFLOW_EXPERIMENT_NAME", "bambi-detection")
-    os.environ.setdefault("MLFLOW_RUN", f"train_{args.name}")
+    run_name = f"train_{args.name}_{args.imgsz}"
+    os.environ.setdefault("MLFLOW_RUN", run_name)
 
     from ultralytics import YOLO, settings
 
@@ -40,12 +41,12 @@ def main() -> None:
     model = YOLO(args.weights)
     model.train(
         data=args.data, epochs=args.epochs, imgsz=args.imgsz, batch=args.batch,
-        device=args.device, project=str(HERE / "runs"), name=f"train_{args.name}",
+        device=args.device, project=str(HERE / "runs"), name=run_name,
         exist_ok=True,
     )
     metrics = model.val(
         data=args.data, imgsz=args.imgsz, batch=args.batch, device=args.device,
-        project=str(HERE / "runs"), name=f"val_{args.name}", exist_ok=True,
+        project=str(HERE / "runs"), name=f"val_{args.name}_{args.imgsz}", exist_ok=True,
     )
     print(f"mAP50-95: {metrics.box.map:.4f}  mAP50: {metrics.box.map50:.4f}")
 

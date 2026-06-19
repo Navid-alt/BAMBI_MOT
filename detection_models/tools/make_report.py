@@ -39,8 +39,8 @@ def main() -> None:
 
     header = (
         "| Model | Params | Config | Subset imgs | img/s | Peak VRAM | Est. 1 epoch (17,684) | "
-        "Est. 50 epochs | Status |\n"
-        "|---|---|---|---|---|---|---|---|---|"
+        "Est. 50 epochs |\n"
+        "|---|---|---|---|---|---|---|---|"
     )
     rows = []
     for r in records:
@@ -50,13 +50,12 @@ def main() -> None:
             rows.append(
                 f"| {r['model']} | {_fmt_params(r)} | {r.get('config','')} | {r['n_train']} | {ips} | "
                 f"{r['peak_vram_gb']} GB | {_fmt_duration(epoch_s)} | "
-                f"{_fmt_duration(epoch_s * 50)} | ok |"
+                f"{_fmt_duration(epoch_s * 50)} |"
             )
         else:
             note = r.get("error", r.get("status", ""))
             rows.append(
-                f"| {r['model']} | {_fmt_params(r)} | {r.get('config','')} | {r.get('n_train','-')} | - | - | - | - | "
-                f"**{r.get('status','?').upper()}** ({note}) |"
+                f"| {r['model']} | {_fmt_params(r)} | {r.get('config','')} | {r.get('n_train','-')} | - | - | - | - |"
             )
 
     body = "\n".join(

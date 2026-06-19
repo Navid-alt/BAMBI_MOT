@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Speed smoke-test: train yolo26-s/l and rf-detr-s/l for 1 epoch on a small
-# subset (all at resolution 736), measure throughput + VRAM, and write
+# subset (all at the native resolution 1024), measure throughput + VRAM, and write
 # reports/speed_report.md with figures extrapolated to the full 17,684-image
 # training set. Each run is also logged to the MLflow "bambi-bench" experiment.
 #
@@ -15,6 +15,10 @@ cd "$(dirname "$0")"
 N_TRAIN="${N_TRAIN:-500}"
 N_VAL="${N_VAL:-50}"
 
+# Pin GPU to the 4070 (device 0) and silence albumentations warnings
+export CUDA_VISIBLE_DEVICES=0
+export NO_ALBUMENTATIONS_UPDATE=1
+
 # Route MLflow logging to the Docker tracking server, into a dedicated benchmark
 # experiment kept separate from the "bambi-detection" training experiment.
 export MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-http://localhost:5000}"
@@ -26,7 +30,7 @@ uv run python tools/make_subset.py --n-train "${N_TRAIN}" --n-val "${N_VAL}"
 rm -rf reports/_bench
 mkdir -p reports/_bench
 
-MODELS=(yolo26-s yolo26-l rf-detr-s rf-detr-l)
+MODELS=(yolo26-s yolo26-l rf-detr-s rf-detr-l yolo26-s-640 yolo26-l-640 rf-detr-s-640 rf-detr-l-640)
 i=0
 for m in "${MODELS[@]}"; do
   i=$((i + 1))
