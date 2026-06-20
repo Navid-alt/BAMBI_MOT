@@ -62,6 +62,29 @@ def main() -> None:
         train_kwargs["resolution"] = args.imgsz
     model.train(**train_kwargs)
 
+    log_yolo_metric_aliases(run_name)
+
+
+def log_yolo_metric_aliases(run_name: str) -> None:
+    """Additively copy the 4 core (non-EMA) val metrics into the just-finished
+    MLflow run under YOLO names on an epoch axis, so they overlay the YOLO runs.
+    Native RF-DETR metrics are untouched; failures here never fail training."""
+    import sys
+    sys.path.insert(0, str(ROOT / "tools"))
+    try:
+        from log_yolo_metric_aliases import find_latest_run_id, relog_yolo_aliases
+
+        uri = os.environ.get("MLFLOW_TRACKING_URI")
+        run_id = find_latest_run_id("bambi-detection", run_name, tracking_uri=uri)
+        if run_id is None:
+            print(f"[yolo-aliases] no MLflow run named {run_name!r}; skipped.")
+            return
+        written = relog_yolo_aliases(run_id, tracking_uri=uri)
+        print(f"[yolo-aliases] run {run_id}: "
+              + ", ".join(f"{k} +{v}" for k, v in written.items()))
+    except Exception as exc:  # logging must never break the training queue
+        print(f"[yolo-aliases] skipped ({type(exc).__name__}: {exc})")
+
 
 if __name__ == "__main__":
     main()

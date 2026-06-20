@@ -37,9 +37,10 @@ run_one () {
 # and RF-DETR's --grad-accum is raised to keep the effective batch unchanged.
 # Queue order as requested: yolo26-s, yolo26-l, rf-detr-l, rf-detr-s.
 #run_one yolo26-s  --imgsz 1024 --batch 12 --device 0
-run_one yolo26-l  --imgsz 1024 --batch 5 --device 0
-run_one rf-detr-l --imgsz 1024 --batch 3 --grad-accum 6 --device 0   # effective batch 18
-#run_one rf-detr-s --imgsz 1024 --batch 4 --grad-accum 4 --device 0   # effective batch 16
+#run_one yolo26-l  --imgsz 1024 --batch 5 --device 0
+run_one rf-detr-l --imgsz 1024 --batch 3 --grad-accum 6 --device cuda --epochs 30  # effective batch 18
+#run_one rf-detr-s --imgsz 1024 --batch 4 --grad-accum 4 --device cuda   # effective batch 16
 
 echo ""
 echo "All training jobs finished. MLflow: ${MLFLOW_TRACKING_URI} (experiment: ${MLFLOW_EXPERIMENT_NAME})"
+f
