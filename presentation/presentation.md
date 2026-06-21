@@ -245,9 +245,12 @@ Compared to the SORT baseline it **more than doubles** true positives
   use per-file symlinks.
 - **Read the data in place** — both detector families point at the same
   `data/yolo_data`, no duplication.
-- **Resolution 736, on purpose.** Both Ultralytics and RF-DETR require input
-  divisible by 32; the dataset is 720-ish, and `720 % 32 = 16`, so we round **up
-  to 736** (nearest valid size) for a fair, identical comparison.
+- **Two resolutions — 640 and 1024 — benchmarked and trained.** Both Ultralytics
+  and RF-DETR require inputs divisible by 32; 640 and 1024 both qualify and
+  bracket the native 1024 × 1024 frames (RF-DETR-L's own native size is 704).
+  **640** is the fast baseline; **1024** preserves full-frame detail for the
+  small, low-contrast targets. Every model is timed at *both* sizes so the
+  resolution effect is isolated cleanly.
 - **OOM is recorded, not fatal.** The benchmark catches CUDA OOM per model and
   logs it as a status instead of crashing the whole run — each model runs in its
   own process so peak VRAM is measured cleanly.
@@ -256,22 +259,33 @@ Compared to the SORT baseline it **more than doubles** true positives
 
 ---
 
-## 12. Detector speed benchmark (RTX 4070, 1 epoch on a 500-image subset @ 736)
+## 12. Detector speed benchmark (RTX 4070, 1 epoch on a 500-image subset)
 
-| Model | Params | Batch | img/s | Peak VRAM | Est. 1 epoch (17,684) | Est. 50 epochs |
-|---|---|:---:|:---:|:---:|:---:|:---:|
-| **yolo26-s** | 10.0 M | 24 | **44.95** | 9.8 GB | **6.6 min** | 5.46 h |
-| yolo26-l | 26.3 M | 10 | 25.3 | 9.83 GB | 11.6 min | 9.71 h |
-| rf-detr-s | 32.1 M | 8 | 15.35 | 12.08 GB | 19.2 min | 16.00 h |
-| rf-detr-l | 33.9 M | 6 | 13.48 | 10.02 GB | 21.9 min | 18.22 h |
+All four detectors timed at **both 640 and 1024**, throughput extrapolated to the
+full 17,684-image epoch (and ×50). Each model runs in its own process so peak
+VRAM is measured cleanly; an OOM in one never stops the others.
+
+| Model | Params | Res | Batch | img/s | Peak VRAM | Est. 1 epoch | Est. 50 epochs |
+|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **yolo26-s** | 10.0 M | 640 | 30 | **32.67** | 9.13 GB | **9.0 min** | 7.52 h |
+| yolo26-s | 10.0 M | 1024 | 12 | 26.09 | 9.64 GB | 11.3 min | 9.41 h |
+| yolo26-l | 26.3 M | 640 | 12 | 27.97 | 8.87 GB | 10.5 min | 8.78 h |
+| yolo26-l | 26.3 M | 1024 | 5 | 14.51 | 9.74 GB | 20.3 min | 16.93 h |
+| rf-detr-s | 32.1 M | 640 | 10 | 16.28 | 12.17 GB | 18.1 min | 15.09 h |
+| rf-detr-s | 32.1 M | 1024 | 4 | 9.07 | 10.94 GB | 32.5 min | 27.08 h |
+| rf-detr-l | 33.9 M | 640 | 8 | 15.02 | 11.29 GB | 19.6 min | 16.35 h |
+| rf-detr-l | 33.9 M | 1024 | 3 | 8.17 | 8.36 GB | 36.1 min | 30.06 h |
 
 **Takeaways:**
-- **YOLO26-s is ~3.3× faster** than RF-DETR-L at training throughput and uses the
-  least memory — the obvious choice for fast iteration.
-- RF-DETR's **DINOv2 backbone is memory-hungry** (rf-detr-s peaks at 12 GB even
-  at batch 8), which is exactly why batch sizes are tuned per model.
-- These figures let us **plan compute up front**: a full 50-epoch YOLO26-s run is
-  ~5.5 h vs ~18 h for RF-DETR-L on a single 12 GB card.
+- **YOLO26-s @640 is ~4× faster** than RF-DETR-L @1024 and uses the least memory
+  — the obvious choice for fast iteration.
+- **Going 640 → 1024 roughly doubles the cost** for every architecture (≈2.5×
+  more pixels), which is the price we knowingly pay for the accuracy gain shown
+  next.
+- RF-DETR's **DINOv2 backbone is memory-hungry**, which is exactly why batch
+  sizes are tuned per model to fit the 12 GB card.
+- These figures let us **plan compute up front** and pick the batch size that
+  fits before launching a multi-hour run.
 
 > The benchmark **extrapolates** subset throughput to the full epoch, so we get a
 > reliable training-cost estimate from a 1-epoch smoke test — no need to burn a
@@ -279,7 +293,73 @@ Compared to the SORT baseline it **more than doubles** true positives
 
 ---
 
-## 13. Data-engineering detail: the annotation converter
+## 13. Detector accuracy — what the four trained models score
+
+Four detectors trained to convergence on the full set (~17.7k images), each
+logged **per epoch** to MLflow (`bambi-detection`). The design probes two axes —
+**model size** (YOLO26 s vs l) and **input resolution** (640 vs 1024) — with
+**RF-DETR-L** adding a **transformer / DINOv2 architecture** at 1024.
+
+| Model | Resolution | Epochs | mAP@50 | mAP@50-95 | Precision | Recall |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| YOLO26-s | 640 | 50 | 0.071 | 0.020 | 0.195 | 0.096 |
+| YOLO26-l | 640 | 50 | 0.107 | 0.030 | 0.280 | 0.124 |
+| YOLO26-l | 1024 | 50 | 0.134 | 0.039 | 0.306 | 0.153 |
+| **RF-DETR-l** | **1024** | 46 | **0.186** | **0.057** | **0.376** | **0.190** |
+
+![Detector validation metrics over training](images/detector_curves.png)
+*Per-epoch validation metrics for all four runs — the ranking is consistent and stable across the whole schedule.*
+
+![Final detector metrics](images/detector_final_bars.png)
+*Final-epoch comparison. Each lever adds accuracy on top of the last.*
+
+**What the numbers say:**
+- **Bigger model helps:** YOLO26 s → l at 640 lifts mAP@50 **+50%** (0.071 → 0.107).
+- **Higher resolution helps:** YOLO26-l 640 → 1024 lifts mAP@50 **+25%**
+  (0.107 → 0.134) — small thermal targets need the pixels.
+- **Architecture helps most:** RF-DETR-L @1024 is the **best overall**, mAP@50
+  **0.186** (+39% over YOLO26-l @1024) and the highest precision (0.376) and
+  recall (0.190), even though it ran 46 of 50 epochs.
+- **But all scores are low** — even the best detector's mAP@50 sits under 0.2.
+  Thermal aerial detection is genuinely hard, and this is exactly the **detection
+  bottleneck** that sets the ~32k false-negative floor we saw on the tracking side
+  (§10) — confirming, from the other direction, that the ceiling here is detection.
+
+---
+
+## 14. Where the detectors fail — confusion matrices
+
+The normalized confusion matrices make the failure mode unmistakable: the
+dominant error is **missing the animal entirely** (predicting *background*), not
+confusing one species for another. All three use the same convention (Ultralytics
+matrix, conf 0.25 / IoU 0.45). RF-DETR logs only COCO mAP during training, so its
+matrix is computed by running the trained checkpoint over the full validation set
+(`tools/rfdetr_confusion_matrix.py`) — making the four detectors directly comparable.
+
+![Confusion matrix — YOLO26-s @640 (weakest)](images/cm_yolo26s_640.png)
+*Weakest model (YOLO26-s @640): Wild boar recall 0.13, Red deer 0.01, Roe deer 0.00 — almost everything falls into the background column.*
+
+![Confusion matrix — YOLO26-l @1024 (best YOLO)](images/cm_yolo26l_1024.png)
+*Best YOLO (YOLO26-l @1024): Wild boar recall climbs to 0.22 and Red deer to 0.18 — the gain from size + resolution lights up the diagonal.*
+
+![Confusion matrix — RF-DETR-l @1024 (best overall)](images/cm_rfdetr_l_1024.png)
+*Best overall (RF-DETR-l @1024): Wild boar recall 0.37 and Red deer 0.34 — the strongest diagonal of the four, but Roe deer is still 0.00.*
+
+**Reading them together:**
+- Stronger model + resolution + architecture **steadily recover recall**: Wild
+  boar **0.13 → 0.22 → 0.37** and Red deer **0.01 → 0.18 → 0.34** across the three
+  matrices. The improvement is real and class-specific.
+- **Roe deer is never detected (0.00 in all three)** — the same story RF-DETR's
+  per-class AP tells (Wild boar 0.078, Red deer 0.094, **Roe deer 0.000**). This
+  is the **severe class imbalance** from §2 showing up directly: there simply are
+  not enough Roe deer examples to learn.
+- Almost no off-diagonal species-vs-species confusion: when a model fires, it
+  usually picks the right class — the battle is **detection vs. background**, not
+  classification.
+
+---
+
+## 15. Data-engineering detail: the annotation converter
 
 `src/annotation_process.py` does the BAMBI MOT → YOLO conversion in a **single
 pass** while also collecting tracking metadata. Decisions baked in:
@@ -301,7 +381,7 @@ project.
 
 ---
 
-## 14. What was genuinely interesting / reusable
+## 16. What was genuinely interesting / reusable
 
 - **Isolating the tracker from the detector** to get an honest measure of MOT
   quality on thermal data.
@@ -310,19 +390,40 @@ project.
 - Making deep Re-ID work on **1-channel thermal** via a pseudo-RGB FP16 wrapper.
 - A reproducible **multi-detector MLOps harness** — one uv env, Docker MLflow,
   symlink zero-copy views, per-model OOM handling, and self-extrapolating speed
-  benchmarks.
+  benchmarks — that produced a clean **4-model accuracy comparison** across size,
+  resolution and architecture.
+- **Both halves point at the same conclusion:** detection — not tracking — is the
+  bottleneck on thermal aerial wildlife, and the data's class imbalance (Roe deer)
+  is the hardest single obstacle.
 - Honest metric interpretation: low ID-switches can mean a *worse* tracker, and a
   high false-negative floor points the finger at detection, not tracking.
 
 ---
 
-## 15. Future work
+## 17. Conclusions
 
-- Train **YOLO26 / YOLOv11**-class detectors specifically on these thermal
-  sequences with **heavy contrast augmentation** and a **150+ epoch** schedule to
-  map subtle thermal gradients (training infra is already in place — see §11–12).
-- Feed the trained detector into BoT-SORT + ReID to close the loop and attack the
-  ~32k false-negative floor that ground-truth isolation exposed.
+- **Tracking:** BoT-SORT + ReID with per-sequence resets is the best configuration
+  (MOTA 0.356, IDF1 0.388), but every tracker hits the same ~32k false-negative
+  wall — a detection ceiling, not an association one.
+- **Detection:** ranking is unambiguous — **RF-DETR-L @1024 > YOLO26-l @1024 >
+  YOLO26-l @640 > YOLO26-s @640**. Model size, resolution and a transformer
+  backbone each add accuracy, in that order of payoff.
+- **The dominant failure is missed detections (animals read as background), and
+  Roe deer is effectively undetectable** with the current data — the class
+  imbalance from §2 is the binding constraint, not the model.
+
+---
+
+## 18. Future work
+
+- Attack the **class imbalance** directly: oversample / augment Roe deer and Red
+  deer, or add a class-balanced loss — the confusion matrices say this is the
+  single highest-leverage fix.
+- Push detection further with **heavy thermal-contrast augmentation** and a longer
+  schedule, and finish the **RF-DETR-S** and full-50-epoch RF-DETR-L runs (infra
+  is already in place — see §11–14).
+- **Close the loop:** feed the best trained detector into BoT-SORT + ReID to
+  attack the ~32k false-negative floor that ground-truth isolation exposed.
 - Push HOTA/IDF1 further with thermal-specific motion models.
 
 ---
@@ -331,15 +432,12 @@ project.
 
 | File | Used in |
 |---|---|
-| `annotation_example_1.png`, `annotation_example_2.png` | §2, §13 — GT thermal annotations |
+| `annotation_example_1.png`, `annotation_example_2.png` | §2, §15 — GT thermal annotations |
 | `tracklifetime.png` / `tracklifetime_PerSequence.png` | §8 — the boundary fix |
 | `long_term_tracks.png` | §9 — 29 filtered trajectories |
 | `Predicted_Vs_GT.png` | §9 — prediction vs ground truth |
 | `tracker_comparison.png` / `performance_per_tracker.png` | §10 — tracker results |
 | `TP_and_TN.png` | §10 — TP vs FN |
 | `per_frame_tp_timeline.png` | §10 — per-frame stability |
-
-> **Note on detector accuracy numbers:** the speed benchmark (§12) is complete and
-> measured. Full-accuracy (mAP) training was still running at the time of writing
-> — present §12 as throughput/cost, and add final mAP from MLflow (`bambi-detection`
-> experiment) once the 50-epoch runs finish.
+| `detector_curves.png` / `detector_final_bars.png` | §13 — detector accuracy (from MLflow) |
+| `cm_yolo26s_640.png` / `cm_yolo26l_1024.png` / `cm_rfdetr_l_1024.png` | §14 — confusion matrices |
