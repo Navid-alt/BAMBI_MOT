@@ -14,8 +14,8 @@ from pathlib import Path
 import markdown
 
 HERE = Path(__file__).resolve().parent
-MD = HERE / "presentation.md"
-OUT = HERE / "presentation.pdf"
+MD = HERE / "report_for_presentation.md"
+OUT = HERE / "report_for_presentation.pdf"
 
 CSS = """
 @page { size: A4 portrait; margin: 14mm 14mm 16mm; }

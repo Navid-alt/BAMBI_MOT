@@ -2,3 +2,21 @@ venv/
 config.local.yaml
 data/
 src/__pycache__
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+
+# Model weights and checkpoints
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Large local archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Generated training / inference outputs
+transformer_tracking/output/

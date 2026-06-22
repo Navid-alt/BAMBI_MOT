@@ -90,10 +90,14 @@ def main() -> None:
     tmp = ROOT / "_cm_tmp"
     tmp.mkdir(exist_ok=True)
     cm.plot(normalize=True, save_dir=str(tmp))
+    cm.plot(normalize=False, save_dir=str(tmp))
     out = PRES_IMG / "cm_rfdetr_l_1024.png"
+    out_counts = PRES_IMG / "cm_rfdetr_l_1024_counts.png"
     shutil.copy(tmp / "confusion_matrix_normalized.png", out)
+    shutil.copy(tmp / "confusion_matrix.png", out_counts)
     shutil.rmtree(tmp, ignore_errors=True)
     print("wrote", out)
+    print("wrote", out_counts)
 
 
 if __name__ == "__main__":
