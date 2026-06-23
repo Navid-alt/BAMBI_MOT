@@ -18,6 +18,11 @@ Sinkhorn dustbin) is trained. RF-DETR is loaded from
 `detection_models/rf-detr-l/output/checkpoint_best_ema.pth` and frozen, so
 training uses < 1 GB VRAM.
 
+> **Trained weights** (the associator and the frozen RF-DETR-l it needs) are on
+> the Hugging Face Hub: [`NavidGh/BambiMot`](https://huggingface.co/NavidGh/BambiMot)
+> — see `transformer_tracking/output/associator_last.pth` and
+> `rf-detr-l/output/checkpoint_best_ema.pth`.
+
 ## Why it fits the project
 
 - **Reuses your detector & data in place** — same `checkpoint_best_ema.pth`,

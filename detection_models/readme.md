@@ -7,6 +7,11 @@ environment**, log to a **Dockerised MLflow** server, and read the dataset
 
 Models: `yolo26-s`, `yolo26-l`, `rf-detr-s`, `rf-detr-l`.
 
+> **Trained weights** are published on the Hugging Face Hub:
+> [`NavidGh/BambiMot`](https://huggingface.co/NavidGh/BambiMot). Download a file
+> to the path its script writes it to (e.g.
+> `rf-detr-l/output/checkpoint_best_ema.pth`) to skip retraining.
+
 ---
 
 ## 1. Prerequisites

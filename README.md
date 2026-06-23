@@ -127,16 +127,32 @@ sub-folders — see their READMEs.
 
 ## 6. Model weights
 
-Trained weights (YOLO26, RF-DETR, the `TrackAssociator`) are **not committed** —
-checkpoint formats (`*.pt`, `*.pth`, `*.ckpt`, `*.safetensors`) are git-ignored
-because of their size.
+Trained weights (YOLO26, RF-DETR, the `TrackAssociator`) are published on the
+**Hugging Face Hub** (kept out of git so the repo stays lightweight):
 
-> **Note:** the weights were excluded from version control early on purely for
-> size reasons, before we received the instruction that trained weights should be
-> included in the submission. By the time that requirement reached us it was no
-> longer practical to re-introduce them into the repository history. The weights
-> are therefore not bundled here, but everything needed to regenerate them
-> bit-for-bit is committed — reproduce them by running the training scripts:
+### 📦 [`NavidGh/BambiMot`](https://huggingface.co/NavidGh/BambiMot)
+
+Download a file and place it at the path its script expects (the layout on the
+Hub mirrors this repo), then detection/tracking picks it up automatically.
+
+| Model | File on the Hub | Place at |
+|---|---|---|
+| YOLO26-s (640) | `yolo26-s/runs/train_yolo26-s/weights/best.pt` | `detection_models/yolo26-s/runs/train_yolo26-s/weights/best.pt` |
+| YOLO26-l (1024) | `yolo26-l/runs/train_yolo26-l_1024/weights/best.pt` | `detection_models/yolo26-l/runs/train_yolo26-l_1024/weights/best.pt` |
+| RF-DETR-l (EMA, recommended) | `rf-detr-l/output/checkpoint_best_ema.pth` | `detection_models/rf-detr-l/output/checkpoint_best_ema.pth` |
+| TrackAssociator | `transformer_tracking/output/associator_last.pth` | `transformer_tracking/output/associator_last.pth` |
+
+The Hub repo also holds the `last.pt` / `best_regular.pth` variants, the full
+training-state `.ckpt` files, and all per-epoch associator checkpoints. Download
+one file with:
+
+```python
+from huggingface_hub import hf_hub_download
+ckpt = hf_hub_download("NavidGh/BambiMot", "rf-detr-l/output/checkpoint_best_ema.pth")
+```
+
+Everything needed to regenerate the weights bit-for-bit is also committed —
+reproduce them by running the training scripts:
 
 - **Detectors:** `detection_models/{yolo26,rf-detr}-{s,l}/train.py` — best/last
   weights are logged as **MLflow artifacts** and written under each model's
@@ -146,8 +162,7 @@ because of their size.
 
 See [`detection_models/readme.md`](detection_models/readme.md) §4–5 and
 [`transformer_tracking/README.md`](transformer_tracking/README.md) for exact
-commands. (If the weights are shared separately, e.g. via release or cloud
-storage, place each file at the path its script expects.)
+commands.
 
 ---
 

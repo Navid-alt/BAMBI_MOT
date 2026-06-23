@@ -2,6 +2,10 @@ venv/
 config.local.yaml
 data/
 src/__pycache__
+
+# Local staging copy of trained weights — published to the Hugging Face Hub
+# (NavidGh/BambiMot), not tracked here.
+weights/
 # Python cache / build artifacts
 __pycache__/
 *.py[cod]
