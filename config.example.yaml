@@ -1,0 +1,11 @@
+# Copy this file to `config.local.yaml` and edit the paths for your machine.
+# `config.local.yaml` is git-ignored so each team member keeps their own paths.
+#
+# Used by the data notebooks (e.g. notebooks/02_Download.ipynb) via
+# `src/config.load_config('../config.local.yaml')`.
+
+paths:
+  # Root folder of the raw BAMBI download (the source data set, before
+  # frame extraction / format conversion). Point this at wherever you
+  # downloaded https://www.bambi.eco/ to on your machine.
+  bambi_data: /path/to/Bambi_Data
